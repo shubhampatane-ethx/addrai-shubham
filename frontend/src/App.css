@@ -1,0 +1,14 @@
+.App {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+.App-header {
+  background-color: #282c34;
+  padding: 20px;
+  color: white;
+}
+
+* {
+  box-sizing: border-box;
+}

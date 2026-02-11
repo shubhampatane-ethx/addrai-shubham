@@ -1,0 +1,50 @@
+version: "3.8"
+
+services:
+  addrai-db:
+    image: postgres:15
+    container_name: AddrAI-db
+    environment:
+      POSTGRES_DB: AddrAI-database
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5401:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      retries: 5
+
+  addrai-backend:
+    build: .
+    container_name: AddrAI-backend
+    depends_on:
+      addrai-db:
+        condition: service_healthy
+    environment:
+      DB_HOST: addrai-db
+      DB_NAME: AddrAI-database
+      DB_USER: postgres
+      DB_PASSWORD: postgres123
+    volumes:
+      - ./backend:/app/backend
+    ports:
+      - "6001:8000"
+
+  addrai-frontend:
+    image: node:18
+    container_name: AddrAI-frontend
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    command: npm start
+    ports:
+      - "3000:3000"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+
+volumes:
+  postgres_data:

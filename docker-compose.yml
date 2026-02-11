@@ -1,0 +1,61 @@
+#version: '3.8'
+
+networks:
+  AddrAI-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+
+services:
+  addrai-db:
+    build:
+      context: ./database
+      dockerfile: Dockerfile
+    container_name: AddrAI-db
+    networks:
+      - AddrAI-net
+    ports:
+      - "5401:5432"  # PostgreSQL (your port 5401 → container port 5432)
+      - "6370:6379"  # Redis (your port 6370 → container port 6379)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - redis_data:/data
+      - ./database/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      POSTGRES_DB: AddrAI-database
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres && redis-cli ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  addrai-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: AddrAI-app
+    networks: 
+      - AddrAI-net
+    ports:
+      - "8090:80"      # Nginx/Frontend (your port 8090 → container port 80)
+      - "6001:8000"    # FastAPI/Backend (your port 6001 → container port 8000)
+    volumes:
+      # ONLY mount backend for development hot-reload
+      - ./backend:/app/backend
+      # DO NOT mount frontend - it prevents React build from working!
+      # - ./frontend:/app/frontend  # ← REMOVED! This was overwriting container builds
+      
+      # Mount data directories
+      - ./uploads:/app/uploads
+      - ./exports:/app/exports
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres123@addrai-db:5432/AddrAI-database
+      - REDIS_URL=redis://addrai-db:6379/0
+      - LOG_LEVEL=INFO
+    depends_on:
+      addrai-db:
+        condition: service_healthy

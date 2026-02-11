@@ -1,0 +1,44 @@
+[supervisord]
+nodaemon=true
+logfile=/var/log/supervisor/supervisord.log
+pidfile=/var/run/supervisord.pid
+user=root
+
+[program:nginx]
+command=/usr/sbin/nginx -g "daemon off;"
+autostart=true
+autorestart=true
+stdout_logfile=/var/log/supervisor/nginx.log
+stderr_logfile=/var/log/supervisor/nginx_err.log
+priority=1
+
+[program:fastapi]
+command=uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+directory=/app
+autostart=true
+autorestart=true
+stdout_logfile=/var/log/supervisor/fastapi.log
+stderr_logfile=/var/log/supervisor/fastapi_err.log
+priority=2
+environment=PYTHONPATH="/app"
+
+[program:celery_worker]
+command=celery -A backend.app.celery_app worker --loglevel=info --concurrency=4
+directory=/app
+autostart=true
+autorestart=true
+stdout_logfile=/var/log/celery/worker.log
+stderr_logfile=/var/log/celery/worker_err.log
+priority=3
+environment=PYTHONPATH="/app"
+stopwaitsecs=600
+
+[program:celery_beat]
+command=celery -A backend.app.celery_app beat --loglevel=info
+directory=/app
+autostart=true
+autorestart=true
+stdout_logfile=/var/log/celery/beat.log
+stderr_logfile=/var/log/celery/beat_err.log
+priority=4
+environment=PYTHONPATH="/app"
